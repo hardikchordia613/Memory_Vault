@@ -48,14 +48,14 @@ class TestGeminiEmbedder(unittest.TestCase):
         mock_client.models.embed_content.return_value = DummySingleEmbeddingResponse(dummy_vector)
         mock_client_cls.return_value = mock_client
 
-        cfg = Config(gemini_api_key="valid-key", embedding_model="text-embedding-004")
+        cfg = Config(gemini_api_key="valid-key", embedding_model="models/gemini-embedding-001")
         embedder = GeminiEmbedder(cfg=cfg)
         result = embedder.embed_text("test query")
 
         self.assertEqual(len(result), EXPECTED_DIMENSIONS)
         self.assertEqual(result, dummy_vector)
         mock_client.models.embed_content.assert_called_once_with(
-            model="text-embedding-004",
+            model="models/gemini-embedding-001",
             contents="test query",
         )
 

@@ -97,7 +97,7 @@ class TestDatabaseManager(unittest.TestCase):
             file_path="vault/db.py",
             developer_context="Context rationale",
             raw_code="import pgvector",
-            embedding=[0.1] * 768,
+            embedding=[0.1] * 3072,
         )
 
         self.assertEqual(mem_id, "123e4567-e89b-12d3-a456-426614174000")
@@ -121,7 +121,7 @@ class TestDatabaseManager(unittest.TestCase):
         mock_conn.cursor.return_value.__enter__.return_value = mock_cur
         mock_connect.return_value = mock_conn
 
-        results = self.db.search_similar(query_embedding=[0.1] * 768, limit=3)
+        results = self.db.search_similar(query_embedding=[0.1] * 3072, limit=3)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["id"], "mem-1")
         self.assertAlmostEqual(results[0]["similarity_score"], 0.85)

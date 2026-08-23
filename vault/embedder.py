@@ -9,7 +9,7 @@ from vault.config import Config, config
 
 logger = logging.getLogger(__name__)
 
-EXPECTED_DIMENSIONS = 768
+EXPECTED_DIMENSIONS = 3072
 
 
 class GeminiEmbedder:

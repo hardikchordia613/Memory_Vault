@@ -22,13 +22,12 @@ CREATE TABLE IF NOT EXISTS code_memories (
     file_path VARCHAR(512),
     developer_context TEXT NOT NULL,
     raw_code TEXT NOT NULL,
-    embedding VECTOR(768) NOT NULL,
+    embedding VECTOR(3072) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_code_memories_embedding 
-ON code_memories 
-USING hnsw (embedding vector_cosine_ops);
+-- Note: Skipping index creation because pgvector has a 2000 dimension limit for HNSW/IVFFlat indexes
+-- For small datasets, sequential scan is acceptable. For larger datasets, consider dimension reduction.
 """
 
 
@@ -111,15 +110,15 @@ class DatabaseManager:
     ) -> list[dict[str, Any]]:
         """Search for memories nearest to the query embedding using cosine distance."""
         query = """
-        SELECT 
+        SELECT
             id,
             file_path,
             developer_context,
             raw_code,
             created_at,
-            (embedding <=> %s) AS cosine_distance
+            (embedding <=> %s::vector) AS cosine_distance
         FROM code_memories
-        ORDER BY embedding <=> %s ASC
+        ORDER BY embedding <=> %s::vector ASC
         LIMIT %s;
         """
         with self.get_connection() as conn:
