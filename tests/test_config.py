@@ -8,7 +8,7 @@ class TestConfig(unittest.TestCase):
     def test_default_config_db_params(self):
         cfg = Config(
             gemini_api_key="test-key",
-            embedding_model="text-embedding-004",
+            embedding_model="models/gemini-embedding-001",
             db_host="localhost",
             db_port=5432,
             db_name="memory_vault",
@@ -16,7 +16,7 @@ class TestConfig(unittest.TestCase):
             db_password="password123",
         )
         self.assertEqual(cfg.gemini_api_key, "test-key")
-        self.assertEqual(cfg.embedding_model, "text-embedding-004")
+        self.assertEqual(cfg.embedding_model, "models/gemini-embedding-001")
         self.assertEqual(
             cfg.db_params,
             {

@@ -48,7 +48,7 @@ class TestMemoryVaultService(unittest.TestCase):
         self.assertIn("Raw code snippet is required", str(ctx.exception))
 
     def test_push_success(self):
-        self.mock_emb.embed_text.return_value = [0.1] * 3072
+        self.mock_emb.embed_text.return_value = [0.1] * 768
         self.mock_db.insert_memory.return_value = "new-uuid-123"
 
         mem_id = self.service.push(
@@ -64,7 +64,7 @@ class TestMemoryVaultService(unittest.TestCase):
             file_path="app/foo.py",
             developer_context="Context rationale",
             raw_code="def foo(): return True",
-            embedding=[0.1] * 3072,
+            embedding=[0.1] * 768,
         )
 
     def test_ask_empty_query_raises(self):
@@ -73,15 +73,19 @@ class TestMemoryVaultService(unittest.TestCase):
         self.assertIn("Search query cannot be empty", str(ctx.exception))
 
     def test_ask_success(self):
-        self.mock_emb.embed_text.return_value = [0.2] * 3072
-        self.mock_db.search_similar.return_value = [
-            {"id": "1", "similarity_score": 0.9}
+        self.mock_emb.embed_text.return_value = [0.2] * 768
+        self.mock_db.hybrid_search.return_value = [
+            {"id": "1", "rrf_score": 0.0325}
         ]
 
         results = self.service.ask("How does foo work?", limit=3)
         self.assertEqual(len(results), 1)
         self.mock_emb.embed_text.assert_called_once_with("How does foo work?")
-        self.mock_db.search_similar.assert_called_once_with([0.2] * 3072, limit=3)
+        self.mock_db.hybrid_search.assert_called_once_with(
+            query_text="How does foo work?",
+            query_embedding=[0.2] * 768,
+            limit=3,
+        )
 
     def test_list_memories(self):
         self.mock_db.fetch_all.return_value = [{"id": "1"}, {"id": "2"}]
@@ -102,10 +106,14 @@ class TestMemoryVaultService(unittest.TestCase):
         self.mock_db.delete_memory.assert_not_called()
 
     def test_ask_limit_sanitization(self):
-        self.mock_emb.embed_text.return_value = [0.2] * 3072
-        self.mock_db.search_similar.return_value = []
+        self.mock_emb.embed_text.return_value = [0.2] * 768
+        self.mock_db.hybrid_search.return_value = []
         self.service.ask("query", limit=-5)
-        self.mock_db.search_similar.assert_called_with([0.2] * 3072, limit=1)
+        self.mock_db.hybrid_search.assert_called_with(
+            query_text="query",
+            query_embedding=[0.2] * 768,
+            limit=1,
+        )
 
     def test_doctor(self):
         self.mock_db.check_health.return_value = {"connected": True}

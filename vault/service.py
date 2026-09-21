@@ -1,4 +1,4 @@
-"""Orchestration service for codebase memory ingestion and semantic retrieval."""
+"""Orchestration service for codebase memory ingestion and hybrid retrieval."""
 
 from __future__ import annotations
 
@@ -75,16 +75,21 @@ class MemoryVaultService:
         return memory_id
 
     def ask(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
-        """Retrieve most relevant memories using natural language query."""
+        """Retrieve memories using fused semantic and keyword relevance."""
         if not query.strip():
             raise ValueError("Search query cannot be empty.")
 
+        cleaned_query = query.strip()
         sanitized_limit = max(1, limit)
-        logger.info("Generating embedding for query: '%s'", query)
-        query_vector = self.emb.embed_text(query.strip())
+        logger.info("Generating embedding for query: '%s'", cleaned_query)
+        query_vector = self.emb.embed_text(cleaned_query)
 
-        logger.info("Executing pgvector cosine similarity search (limit=%d)...", sanitized_limit)
-        return self.db.search_similar(query_vector, limit=sanitized_limit)
+        logger.info("Executing hybrid RRF search (limit=%d)...", sanitized_limit)
+        return self.db.hybrid_search(
+            query_text=cleaned_query,
+            query_embedding=query_vector,
+            limit=sanitized_limit,
+        )
 
     def list_memories(self, limit: int = 20) -> list[dict[str, Any]]:
         """List recently stored memories."""

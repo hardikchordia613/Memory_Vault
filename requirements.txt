@@ -1,6 +1,16 @@
-google-genai>=0.1.1
+google-genai>=1.47.0,<3.0.0
 psycopg2-binary>=2.9.9
 pgvector>=0.3.6
 python-dotenv>=1.0.1
 pytest>=8.0.0
 pytest-cov>=5.0.0
+
+# Context-aware chunking (official Tree-sitter bindings + YAML parsing)
+tree-sitter==0.26.0
+tree-sitter-python==0.25.0
+tree-sitter-javascript==0.25.0
+tree-sitter-typescript==0.23.2
+tree-sitter-java==0.23.5
+tree-sitter-go==0.25.0
+tree-sitter-rust==0.24.2
+PyYAML==6.0.3

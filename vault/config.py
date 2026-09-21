@@ -28,7 +28,9 @@ def _get_int(key: str, default: int) -> int:
 @dataclass(frozen=True)
 class Config:
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    embedding_model: str = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
+    embedding_model: str = os.getenv(
+        "EMBEDDING_MODEL", "models/gemini-embedding-001"
+    )
     db_host: str = os.getenv("DB_HOST", "localhost")
     db_port: int = _get_int("DB_PORT", 5432)
     db_name: str = os.getenv("DB_NAME", "memory_vault")

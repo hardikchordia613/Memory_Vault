@@ -81,7 +81,7 @@ def handle_push(args: argparse.Namespace) -> None:
 
 
 def handle_ask(args: argparse.Namespace) -> None:
-    """Handle semantic similarity search via 'ask' subcommand."""
+    """Handle hybrid semantic and keyword search via the 'ask' subcommand."""
     query = args.query
     limit = args.limit
 
@@ -95,13 +95,21 @@ def handle_ask(args: argparse.Namespace) -> None:
 
         print(f"{GREEN}Found {len(results)} relevant memory/memories:{RESET}\n")
         for i, item in enumerate(results, 1):
-            score = item.get("similarity_score", 0.0) * 100
+            rrf_score = item.get("rrf_score")
+            score_text = f"{float(rrf_score):.6f}" if rrf_score is not None else "n/a"
+            semantic_rank = item.get("semantic_rank")
+            keyword_rank = item.get("keyword_rank")
+            semantic_text = f"#{semantic_rank}" if semantic_rank is not None else "—"
+            keyword_text = f"#{keyword_rank}" if keyword_rank is not None else "—"
             file_str = item.get("file_path") or "Inline snippet"
             created_at = item.get("created_at")
 
-            score_color = GREEN if score >= 75 else (YELLOW if score >= 50 else RED)
-
-            print(f"{MAGENTA}{BOLD}┌── Result #{i} {RESET}─ {score_color}[{score:.1f}% Match]{RESET} {DIM}(ID: {item['id']}){RESET}")
+            print(
+                f"{MAGENTA}{BOLD}┌── Result #{i} {RESET}─ "
+                f"{GREEN}[RRF: {score_text} | Semantic: {semantic_text} | "
+                f"Keyword: {keyword_text}]{RESET} "
+                f"{DIM}(ID: {item['id']}){RESET}"
+            )
             print(f"{MAGENTA}│{RESET} {BOLD}File:{RESET}       {file_str}")
             if created_at:
                 print(f"{MAGENTA}│{RESET} {BOLD}Timestamp:{RESET}  {created_at}")
@@ -201,7 +209,7 @@ def main() -> None:
     push_parser.set_defaults(func=handle_push)
 
     # Subcommand: ask
-    ask_parser = subparsers.add_parser("ask", help="Ask a question / semantic search stored codebase context")
+    ask_parser = subparsers.add_parser("ask", help="Ask a question / hybrid search stored codebase context")
     ask_parser.add_argument("query", type=str, help="Natural language question or search query")
     ask_parser.add_argument("-l", "--limit", type=int, default=5, help="Maximum number of memories to return (default: 5)")
     ask_parser.set_defaults(func=handle_ask)

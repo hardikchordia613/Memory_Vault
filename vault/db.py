@@ -22,12 +22,68 @@ CREATE TABLE IF NOT EXISTS code_memories (
     file_path VARCHAR(512),
     developer_context TEXT NOT NULL,
     raw_code TEXT NOT NULL,
-    embedding VECTOR(3072) NOT NULL,
+    embedding VECTOR(768) NOT NULL,
+    search_vector tsvector GENERATED ALWAYS AS (
+        to_tsvector('english', developer_context || ' ' || raw_code)
+    ) STORED,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Note: Skipping index creation because pgvector has a 2000 dimension limit for HNSW/IVFFlat indexes
--- For small datasets, sequential scan is acceptable. For larger datasets, consider dimension reduction.
+ALTER TABLE code_memories
+ADD COLUMN IF NOT EXISTS search_vector tsvector GENERATED ALWAYS AS (
+    to_tsvector('english', developer_context || ' ' || raw_code)
+) STORED;
+
+CREATE INDEX IF NOT EXISTS idx_code_memories_embedding
+ON code_memories
+USING hnsw (embedding vector_cosine_ops);
+
+CREATE INDEX IF NOT EXISTS idx_code_memories_search_vector
+ON code_memories
+USING GIN (search_vector);
+"""
+
+
+HYBRID_SEARCH_SQL = """
+WITH semantic_search AS (
+    SELECT
+        id,
+        rank() OVER (ORDER BY embedding <=> %s::vector) AS rank
+    FROM code_memories
+    ORDER BY rank
+    LIMIT 20
+),
+keyword_search AS (
+    SELECT
+        id,
+        rank() OVER (
+            ORDER BY ts_rank_cd(
+                search_vector,
+                websearch_to_tsquery('english', %s)
+            ) DESC
+        ) AS rank
+    FROM code_memories
+    WHERE search_vector @@ websearch_to_tsquery('english', %s)
+    ORDER BY rank
+    LIMIT 20
+)
+SELECT
+    memories.id,
+    memories.file_path,
+    memories.developer_context,
+    memories.raw_code,
+    memories.created_at,
+    s.rank AS semantic_rank,
+    k.rank AS keyword_rank,
+    COALESCE(1.0 / (60 + s.rank), 0.0)
+        + COALESCE(1.0 / (60 + k.rank), 0.0) AS rrf_score
+FROM semantic_search AS s
+FULL OUTER JOIN keyword_search AS k
+    ON s.id = k.id
+JOIN code_memories AS memories
+    ON memories.id = COALESCE(s.id, k.id)
+ORDER BY rrf_score DESC
+LIMIT %s;
 """
 
 
@@ -103,33 +159,25 @@ class DatabaseManager:
                 memory_id = cur.fetchone()[0]
                 return str(memory_id)
 
-    def search_similar(
+    def hybrid_search(
         self,
+        query_text: str,
         query_embedding: list[float],
         limit: int = 5,
     ) -> list[dict[str, Any]]:
-        """Search for memories nearest to the query embedding using cosine distance."""
-        query = """
-        SELECT
-            id,
-            file_path,
-            developer_context,
-            raw_code,
-            created_at,
-            (embedding <=> %s::vector) AS cosine_distance
-        FROM code_memories
-        ORDER BY embedding <=> %s::vector ASC
-        LIMIT %s;
-        """
+        """Fuse semantic and keyword rankings with RRF in one SQL query."""
+        if not query_text.strip():
+            raise ValueError("Search query cannot be empty.")
+        if not query_embedding:
+            raise ValueError("Query embedding cannot be empty.")
+        if limit < 1:
+            raise ValueError("Limit must be at least 1.")
+
+        params = (query_embedding, query_text, query_text, limit)
         with self.get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(query, (query_embedding, query_embedding, limit))
-                results = cur.fetchall()
-                # Compute similarity percentage for convenience
-                for r in results:
-                    dist = float(r["cosine_distance"])
-                    r["similarity_score"] = max(0.0, min(1.0, 1.0 - dist))
-                return [dict(r) for r in results]
+                cur.execute(HYBRID_SEARCH_SQL, params)
+                return [dict(row) for row in cur.fetchall()]
 
     def fetch_all(self, limit: int = 20) -> list[dict[str, Any]]:
         """Fetch recent memories ordered by creation date."""

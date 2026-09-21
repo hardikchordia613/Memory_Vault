@@ -1,7 +1,8 @@
 """Unit tests for vault.embedder."""
 
 import unittest
-from unittest.mock import MagicMock, patch
+import math
+from unittest.mock import ANY, MagicMock, patch
 from vault.config import Config
 from vault.embedder import GeminiEmbedder, EXPECTED_DIMENSIONS
 
@@ -53,11 +54,14 @@ class TestGeminiEmbedder(unittest.TestCase):
         result = embedder.embed_text("test query")
 
         self.assertEqual(len(result), EXPECTED_DIMENSIONS)
-        self.assertEqual(result, dummy_vector)
+        self.assertAlmostEqual(math.sqrt(sum(value * value for value in result)), 1.0)
         mock_client.models.embed_content.assert_called_once_with(
             model="models/gemini-embedding-001",
             contents="test query",
+            config=ANY,
         )
+        embed_config = mock_client.models.embed_content.call_args.kwargs["config"]
+        self.assertEqual(embed_config.output_dimensionality, EXPECTED_DIMENSIONS)
 
     @patch("google.genai.Client")
     def test_embed_text_multiple_embeddings_shape(self, mock_client_cls):
@@ -70,7 +74,7 @@ class TestGeminiEmbedder(unittest.TestCase):
         embedder = GeminiEmbedder(cfg=cfg)
         result = embedder.embed_text("sample code")
 
-        self.assertEqual(result, dummy_vector)
+        self.assertAlmostEqual(math.sqrt(sum(value * value for value in result)), 1.0)
 
     @patch("google.genai.Client")
     def test_embed_text_direct_values_shape(self, mock_client_cls):
@@ -83,7 +87,7 @@ class TestGeminiEmbedder(unittest.TestCase):
         embedder = GeminiEmbedder(cfg=cfg)
         result = embedder.embed_text("sample code")
 
-        self.assertEqual(result, dummy_vector)
+        self.assertAlmostEqual(math.sqrt(sum(value * value for value in result)), 1.0)
 
     @patch("google.genai.Client")
     def test_embed_text_direct_list_response(self, mock_client_cls):
@@ -96,7 +100,7 @@ class TestGeminiEmbedder(unittest.TestCase):
         embedder = GeminiEmbedder(cfg=cfg)
         result = embedder.embed_text("sample code")
 
-        self.assertEqual(result, dummy_vector)
+        self.assertAlmostEqual(math.sqrt(sum(value * value for value in result)), 1.0)
 
     @patch("google.genai.Client")
     def test_embed_text_api_failure_raises_runtime_error(self, mock_client_cls):

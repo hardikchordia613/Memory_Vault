@@ -3,7 +3,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from vault.config import Config
-from vault.db import DatabaseManager, INIT_SQL
+from vault.db import DatabaseManager, HYBRID_SEARCH_SQL, INIT_SQL
 
 
 class TestDatabaseManager(unittest.TestCase):
@@ -54,6 +54,9 @@ class TestDatabaseManager(unittest.TestCase):
         self.db.init_db()
 
         mock_cur.execute.assert_called_once_with(INIT_SQL)
+        self.assertIn("embedding VECTOR(768)", INIT_SQL)
+        self.assertIn("USING hnsw (embedding vector_cosine_ops)", INIT_SQL)
+        self.assertIn("USING GIN (search_vector)", INIT_SQL)
 
     @patch("vault.db.register_vector")
     @patch("psycopg2.connect")
@@ -97,7 +100,7 @@ class TestDatabaseManager(unittest.TestCase):
             file_path="vault/db.py",
             developer_context="Context rationale",
             raw_code="import pgvector",
-            embedding=[0.1] * 3072,
+            embedding=[0.1] * 768,
         )
 
         self.assertEqual(mem_id, "123e4567-e89b-12d3-a456-426614174000")
@@ -105,26 +108,51 @@ class TestDatabaseManager(unittest.TestCase):
 
     @patch("vault.db.register_vector")
     @patch("psycopg2.connect")
-    def test_search_similar(self, mock_connect, mock_reg_vector):
+    def test_hybrid_search_executes_rrf_in_one_query(self, mock_connect, mock_reg_vector):
         mock_conn = MagicMock()
         mock_cur = MagicMock()
         mock_cur.fetchall.return_value = [
             {
                 "id": "mem-1",
                 "file_path": "vault/db.py",
-                "developer_context": "PostgreSQL context",
-                "raw_code": "code snippet",
+                "developer_context": "PostgreSQL hybrid search",
+                "raw_code": "WITH semantic_search AS (...) SELECT ...",
                 "created_at": "2026-08-23T10:00:00",
-                "cosine_distance": 0.15,
+                "semantic_rank": 1,
+                "keyword_rank": 2,
+                "rrf_score": 0.0325,
             }
         ]
         mock_conn.cursor.return_value.__enter__.return_value = mock_cur
         mock_connect.return_value = mock_conn
 
-        results = self.db.search_similar(query_embedding=[0.1] * 3072, limit=3)
-        self.assertEqual(len(results), 1)
+        embedding = [0.1] * 768
+        results = self.db.hybrid_search("PostgreSQL RRF", embedding, limit=3)
+
         self.assertEqual(results[0]["id"], "mem-1")
-        self.assertAlmostEqual(results[0]["similarity_score"], 0.85)
+        mock_cur.execute.assert_called_once_with(
+            HYBRID_SEARCH_SQL,
+            (embedding, "PostgreSQL RRF", "PostgreSQL RRF", 3),
+        )
+
+        normalized_sql = " ".join(HYBRID_SEARCH_SQL.split())
+        self.assertIn("WITH semantic_search AS", normalized_sql)
+        self.assertIn("keyword_search AS", normalized_sql)
+        self.assertIn("FULL OUTER JOIN keyword_search AS k", normalized_sql)
+        self.assertIn("embedding <=> %s::vector", normalized_sql)
+        self.assertIn("websearch_to_tsquery('english', %s)", normalized_sql)
+        self.assertIn(
+            "COALESCE(1.0 / (60 + s.rank), 0.0)",
+            normalized_sql,
+        )
+
+    def test_hybrid_search_validates_inputs(self):
+        with self.assertRaises(ValueError):
+            self.db.hybrid_search("", [0.1], limit=5)
+        with self.assertRaises(ValueError):
+            self.db.hybrid_search("query", [], limit=5)
+        with self.assertRaises(ValueError):
+            self.db.hybrid_search("query", [0.1], limit=0)
 
     @patch("vault.db.register_vector")
     @patch("psycopg2.connect")

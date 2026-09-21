@@ -120,7 +120,9 @@ class TestCLI(unittest.TestCase):
         mock_service.ask.return_value = [
             {
                 "id": "result-id-1",
-                "similarity_score": 0.88,
+                "rrf_score": 0.0325,
+                "semantic_rank": 1,
+                "keyword_rank": 2,
                 "file_path": "vault/db.py",
                 "created_at": "2026-08-23 12:00:00",
                 "developer_context": "PostgreSQL rationale",
@@ -128,7 +130,9 @@ class TestCLI(unittest.TestCase):
             },
             {
                 "id": "result-id-2",
-                "similarity_score": 0.45,
+                "rrf_score": 0.0161,
+                "semantic_rank": None,
+                "keyword_rank": 2,
                 "file_path": None,
                 "created_at": None,
                 "developer_context": "Low score rationale",
@@ -141,8 +145,10 @@ class TestCLI(unittest.TestCase):
             cli.handle_ask(args)
             output = mock_stdout.getvalue()
             self.assertIn("Found 2 relevant memory/memories", output)
-            self.assertIn("88.0% Match", output)
-            self.assertIn("45.0% Match", output)
+            self.assertIn("RRF: 0.032500", output)
+            self.assertIn("Semantic: #1", output)
+            self.assertIn("Semantic: —", output)
+            self.assertIn("Keyword: #2", output)
             self.assertIn("result-id-1", output)
 
     @patch("vault.cli.vault_service")
