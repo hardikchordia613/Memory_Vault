@@ -9,6 +9,7 @@ class TestConfig(unittest.TestCase):
         cfg = Config(
             gemini_api_key="test-key",
             embedding_model="models/gemini-embedding-001",
+            agent_model="gemini-3.6-flash",
             db_host="localhost",
             db_port=5432,
             db_name="memory_vault",
@@ -17,6 +18,7 @@ class TestConfig(unittest.TestCase):
         )
         self.assertEqual(cfg.gemini_api_key, "test-key")
         self.assertEqual(cfg.embedding_model, "models/gemini-embedding-001")
+        self.assertEqual(cfg.agent_model, "gemini-3.6-flash")
         self.assertEqual(
             cfg.db_params,
             {

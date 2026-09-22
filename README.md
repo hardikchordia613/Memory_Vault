@@ -19,6 +19,18 @@ It combines:
 The database runs locally in Docker. Gemini is used only for embeddings and the
 optional AI review workflow.
 
+## Demo
+
+![Codebase Memory Vault terminal demo](demo.gif)
+
+Run the same live walkthrough yourself:
+
+```bash
+./record_demo.sh
+```
+
+See [DEMO_RECORDING_GUIDE.md](DEMO_RECORDING_GUIDE.md) to regenerate the GIF.
+
 ## Why this project exists
 
 Code tells us *what* a system does, but it often does not explain *why* it was
@@ -343,6 +355,7 @@ Edit `.env`:
 ```dotenv
 GEMINI_API_KEY=your_real_api_key
 EMBEDDING_MODEL=models/gemini-embedding-001
+AGENT_MODEL=gemini-3.6-flash
 
 DB_HOST=localhost
 DB_PORT=5432

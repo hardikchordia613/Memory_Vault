@@ -26,7 +26,6 @@ from vault.embedder import embedder
 
 logger = logging.getLogger(__name__)
 
-SUPERVISOR_MODEL = "gemini-2.5-flash"
 MAX_TOOL_ROUNDS = 12
 MAX_FILE_BYTES = 1_000_000
 MAX_CONTEXT_CHARS = 100_000
@@ -198,7 +197,7 @@ def qa_engineer_test(file_path: str, context_notes: str) -> str:
     client = _new_client()
     try:
         response = client.models.generate_content(
-            model=SUPERVISOR_MODEL,
+            model=config.agent_model,
             contents=prompt,
             config=types.GenerateContentConfig(system_instruction=QA_INSTRUCTION),
         )
@@ -275,7 +274,7 @@ def run_code_review_workflow(user_prompt: str) -> str:
     client = _new_client()
     try:
         chat = client.chats.create(
-            model=SUPERVISOR_MODEL,
+            model=config.agent_model,
             config=types.GenerateContentConfig(
                 system_instruction=SUPERVISOR_INSTRUCTION,
                 tools=[historian_search, architect_analyze, qa_engineer_test],

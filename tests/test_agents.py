@@ -48,7 +48,7 @@ def test_qa_engineer_delegates_with_code_and_context(mock_read, mock_client) -> 
     assert result == "# Test plan"
     mock_read.assert_called_once_with("auth.py")
     call = client.models.generate_content.call_args.kwargs
-    assert call["model"] == "gemini-2.5-flash"
+    assert call["model"] == agents.config.agent_model
     assert "def login(): pass" in call["contents"]
     assert "expired early" in call["contents"]
 

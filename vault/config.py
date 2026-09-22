@@ -31,6 +31,7 @@ class Config:
     embedding_model: str = os.getenv(
         "EMBEDDING_MODEL", "models/gemini-embedding-001"
     )
+    agent_model: str = os.getenv("AGENT_MODEL", "gemini-3.6-flash")
     db_host: str = os.getenv("DB_HOST", "localhost")
     db_port: int = _get_int("DB_PORT", 5432)
     db_name: str = os.getenv("DB_NAME", "memory_vault")
